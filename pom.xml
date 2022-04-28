@@ -73,6 +73,7 @@
 				</configuration>
 			</plugin>
 		</plugins>
+		<finalName>springboot-restapi</finalName>
 	</build>
 
 </project>
