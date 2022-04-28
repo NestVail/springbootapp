@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>User Management</title>
+</head>
+<body>
+    <h2>User List</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Brand</th>
+            <th>Price</th>
+            <th>Edit</th>
+            <th>Delete</th>
+        </tr>
+        <tr th:each="chicken : ${chickens}">
+            <td th:text="${chicken.name}"></td>
+            <td th:text="${chicken.brand}"></td>
+            <td th:text="${chicken.price}"></td>
+            <td><a th:href="@{/edit/{id}(id=${chicken.id})}">Edit</a></td>
+            <td><a th:href="@{/delete/{id}(id=${chicken.id})}">Delete</a></td>
+        </tr>
+    </table>
+    <p>
+        <a href="/add">Insert</a>
+    </p>
+</body>
+</html>
