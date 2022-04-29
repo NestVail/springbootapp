@@ -1,0 +1,128 @@
+mkdir -p /work/test3/nginx/conf
+
+cat <<EOF | sudo tee /work/test3/nginx/conf/nginx.conf
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+    
+# Load dynamic modules. See /usr/share/nginx/README.dynamic.
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+        
+    upstream backend {
+    server mywas:8000;
+    }
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+
+    default_type        application/octet-stream;
+
+    # Load modular configuration files from the /etc/nginx/conf.d directory.
+    # See http://nginx.org/en/docs/ngx_core_module.html#include
+    # for more information.
+    include /etc/nginx/conf.d/*.conf;
+
+    server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  _;
+        root         /usr/share/nginx/html/;
+
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+        proxy_pass http://backend;
+        proxy_set_header X-Forwarded-Port \$server_port;
+        proxy_set_header X-Forwarded-Host \$host;
+        }
+
+        error_page 404 /404.html;
+        location = /40x.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+        }
+    }
+}
+
+EOF
+
+
+mkdir -p /work/test3/db/conf
+mkdir -p /work/test3/db/data
+
+cat <<EOF | sudo tee /work/test3/db/conf/my.cnf
+
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4
+
+[mysqld]
+character-set-client-handshake = FALSE
+character-set-server           = utf8mb4
+collation-server               = utf8mb4_unicode_ci
+EOF
+
+
+mkdir -p /work/test3/db/env
+
+cat <<EOF | sudo tee /work/test3/db/env/.env
+MYSQL_HOST=mysql-svc
+MYSQL_PORT=3306
+MYSQL_ROOT_PASSWORD=mysqlchicken
+MYSQL_DATABASE=chicken_db
+MYSQL_USER=chicken
+MYSQL_PASSWORD=chicken
+MYSQL_ROOT_HOST='%'
+EOF
+
+
+mkdir -p /work/myproject 
+
+cat <<EOF | sudo tee /work/myproject/docker-compose.yml
+
+version: "3"
+
+services:
+  mysql-svc:
+    image: mysql:5.7
+    volumes:
+      - /work/test3/db/conf:/etc/mysql/conf.d
+    env_file: /work/test3/db/env/.env
+
+  mywas:
+    image: solidcopy105/springboot-test:restapi_v1
+    depends_on:
+      - mysql-svc  
+    restart: always
+
+  mynginx:
+    image: nginx
+    volumes:
+      - /work/test3/nginx/conf:/etc/nginx
+    depends_on:
+      - mywas  
+    ports:
+      - "80:80"
+
+EOF
